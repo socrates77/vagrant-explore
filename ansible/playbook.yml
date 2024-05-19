@@ -1,0 +1,15 @@
+---
+- name: Aggiorna pacchetti e installa Docker
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Aggiorna pacchetti
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Installa Docker
+      apt:
+        name: docker.io
+        state: present

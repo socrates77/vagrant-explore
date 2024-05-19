@@ -23,9 +23,15 @@ Vagrant.configure("2") do |config|
   # Definisci la seconda macchina virtuale
   config.vm.define "slave1" do |box2|
     box2.vm.box = "debian/bookworm64"
+    box2.vm.provider "virtualbox" do |vb|
+      # Customize the amount of memory on the VM:
+      vb.memory = "1024"
+    end
     box2.vm.network "private_network", ip: "192.168.33.11"
+    box2.vm.synced_folder "./ansible", "/home/vagrant/ansible"
     box2.vm.provision "ansible" do |ansible|
-      ansible.playbook = "ansible/playbook.yml"
+      # ansible.mode = 'auto'
+      ansible.playbook = "./ansible/playbook.yml"
     end
   end
 
