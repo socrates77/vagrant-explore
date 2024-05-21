@@ -6,41 +6,66 @@
 # backwards compatibility). Please don't change it unless you know what
 # you're doing.
 Vagrant.configure("2") do |config|
-  # The most common configuration options are documented and commented below.
-  # For a complete reference, please see the online documentation at
-  # https://docs.vagrantup.com.
+    # The most common configuration options are documented and commented below.
+    # For a complete reference, please see the online documentation at
+    # https://docs.vagrantup.com.
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
   # config.vm.box = "base"
 
+  config.vm.provision "shell", inline: <<-SHELL
+    apt update;
+    apt upgrade -y;
+  SHELL
   # Definisci la prima macchina virtuale
-  config.vm.define "manage" do |box1|
+  config.vm.define "manager" do |box1|
     box1.vm.box = "debian/bookworm64"
+    box1.vm.hostname = "manager"
     box1.vm.network "private_network", ip: "192.168.33.10"
+    box1.vm.synced_folder "./ansible", "/home/vagrant/ansible"
+    box1.vm.provision "shell", inline: <<-SHELL
+      apt install -y ansible;
+
+      # Genera la chiave SSH se non esiste
+      if [ ! -f /home/vagrant/.ssh/id_rsa ]; then
+        sudo su - vagrant -c "ssh-keygen -t rsa -N '' -f /home/vagrant/.ssh/id_rsa"
+        sudo su - vagrant -c "cp /home/vagrant/.ssh/id_rsa.pub /vagrant/keys/id_rsa.pub"
+      fi
+    SHELL
   end
 
   # Definisci la seconda macchina virtuale
-  config.vm.define "slave1" do |box2|
+  config.vm.define "peerone" do |box2|
     box2.vm.box = "debian/bookworm64"
+    box2.vm.hostname = "peerone"
     box2.vm.provider "virtualbox" do |vb|
       # Customize the amount of memory on the VM:
       vb.memory = "1024"
     end
     box2.vm.network "private_network", ip: "192.168.33.11"
-    box2.vm.synced_folder "./ansible", "/home/vagrant/ansible"
-    box2.vm.provision "ansible" do |ansible|
-      # ansible.mode = 'auto'
-      ansible.playbook = "./ansible/playbook.yml"
-    end
+    box2.vm.provision "shell", inline: <<-SHELL
+      # Crea la directory .ssh se non esiste
+      sudo su - vagrant -c "mkdir -p /home/vagrant/.ssh"
+      # Copia la chiave pubblica dalla macchina 'manager'
+      sudo su - vagrant -c "cat /vagrant/keys/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys"
+    SHELL
   end
 
   # Definisci la terza macchina virtuale
-  config.vm.define "slave2" do |box3|
+  config.vm.define "peertwo" do |box3|
     box3.vm.box = "debian/bookworm64"
+    box3.vm.hostname = "peertwo"
     box3.vm.network "private_network", ip: "192.168.33.12"
+    box3.vm.synced_folder "./keys", "/home/vagrant/.ssh"
+    box3.vm.provision "shell", inline: <<-SHELL
+      # Crea la directory .ssh se non esiste
+      sudo su - vagrant -c "mkdir -p /home/vagrant/.ssh"
+      # Copia la chiave pubblica dalla macchina 'manager'
+      sudo su - vagrant -c "cat /vagrant/keys/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys"
+    SHELL
   end
-  
+
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
   # `vagrant box outdated`. This is not recommended.
